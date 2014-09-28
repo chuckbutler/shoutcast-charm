@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# fix a deficiency on Digital Ocean and other providers
+apt-get update
+apt-get install -y python-yaml

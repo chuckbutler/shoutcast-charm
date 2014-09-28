@@ -1,0 +1,25 @@
+options:
+  source:
+    type: string
+    default: "http://download.nullsoft.com/shoutcast/tools/sc_serv2_linux_x64_09_09_2014.tar.gz"
+    description: "Download Source for Shoutcast DNAS"
+  source-hash:
+    type: string
+    default: "7712d444938e3939cfbdebcb8f4055ebf71142ba"
+    description: "SHA1 checksum of DNAS file"
+  port:
+    type: int
+    default: 8000
+    description: "Port that the shoutcast DNAS server will listen on"
+  password:
+    type: string
+    default: ""
+    description: "password used by the broadcaster or the Winamp dsp plug-in"
+  adminpassword:
+    type: string
+    default: ""
+    description: "assword used for accessing the administation pages"
+  public:
+    type: boolean
+    default: false
+    description: "attempt to make a connection to the YP for listing"

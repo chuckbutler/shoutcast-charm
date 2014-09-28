@@ -1,0 +1,14 @@
+name: shoutcast
+summary: installs and configures Shoutcast DNAS server
+maintainer: charles <charles@desktop>
+description: |
+  SHOUTcast lets you transmit your audio to listeners around the world.
+categories:
+  - Application
+subordinate: false
+provides:
+  scsource:
+    interface: streamrelay
+requires:
+  screlay:
+    interface: streamrelay

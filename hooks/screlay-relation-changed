@@ -1,0 +1,8 @@
+#!/bin/bash
+
+hostname=`relation-get hostname`
+port=`relation-get port`
+
+# stack the values in a cache file
+echo $hostname > $CHARM_DIR/.relay
+echo $port >> $CHARM_DIR/.relay

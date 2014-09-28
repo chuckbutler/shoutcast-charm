@@ -1,0 +1,62 @@
+#!/usr/bin/python3
+
+import amulet
+import unittest
+import requests
+
+class TestDeploy(unittest.TestCase):
+  @classmethod
+  def setUpClass(cls):
+    cls.d = amulet.Deployment(series='trusty')
+    cls.d.add('shoutcast')
+    cls.d.configure('shoutcast', {'port': 80,
+                                  'password': 'hooba',
+                                  'adminpassword': 'dooba'})
+                                
+    cls.d.expose('shoutcast')
+
+    try:
+      cls.d.setup(timeout=1200)
+      cls.d.sentry.wait()
+    except amulet.helpers.TimeoutError:
+      amulet.raise_status(amulet.SKIP, msg="Environment wasn't stoodup in time")
+    except:
+      raise
+    # Define our unit accessors
+    cls.sc = cls.d.sentry.unit['shoutcast/0']
+
+
+
+  def test_shoutcast_service(self):
+    output = self.sc.run('service shoutcast status')
+    service_active = str(output).find('shoutcast start/running')
+    if service_active == -1:
+      amulet.raise_status(amulet.FAIL, "Failed to find running service")
+
+  def test_shoutcast_data(self):
+    output = self.sc.file_contents('/opt/shoutcast/sc_serv_basic.conf')
+    if output.find('adminpassword=dooba') == -1:
+      amulet.raise_status(amulet.FAIL, "Failed Admin Pass")
+    if output.find('password=hooba') == -1:
+      amulet.raise_status(amulet.FAIL, "Failed Broadcast Pass")
+
+  def test_shoutcast_web(self):
+    response = requests.get('http://{}/index.html'.format(self.sc.info['public-address']))
+    response.raise_for_status()
+
+    if response.content.find(b"<title>SHOUT") == -1:
+      amulet.raise_status(amulet.FAIL, "Failed web response validation")
+
+if __name__ == '__main__':
+  unittest.main()
+
+# Now you can use d.sentry.unit[UNIT] to address each of the units and perform
+# more in-depth steps. There are three test statuses: amulet.PASS, amulet.FAIL,
+# and amulet.SKIP - these can be triggered with amulet.raise_status(). Each
+# d.sentry.unit[] has the following methods:
+# - .info - An array of the information of that unit from Juju
+# - .file(PATH) - Get the details of a file on that unit
+# - .file_contents(PATH) - Get plain text output of PATH file from that unit
+# - .directory(PATH) - Get details of directory
+# - .directory_contents(PATH) - List files and folders in PATH on that unit
+# - .relation(relation, service:rel) - Get relation data from return service

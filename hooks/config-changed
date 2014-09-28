@@ -1,0 +1,86 @@
+#!/usr/bin/python
+
+import os
+import shlex
+import shutil
+import subprocess
+import sys
+
+sys.path.insert(0, os.path.join(os.environ['CHARM_DIR'], 'lib'))
+
+from charmhelpers.core import (
+    hookenv,
+    host,
+)
+from charmhelpers.contrib.templating.jinja import render
+from charmhelpers.fetch.archiveurl import ArchiveUrlFetchHandler as fetch
+
+hooks = hookenv.Hooks()
+log = hookenv.log
+
+SERVICE = 'shoutcast'
+INSTALL_DIR = os.path.join(os.path.sep, 'opt', 'shoutcast')
+CONFIG_PATH = os.path.join(INSTALL_DIR, 'sc_serv_basic.conf')
+@hooks.hook('config-changed')
+def config_changed():
+    config = hookenv.config()
+
+    for key in config:
+        if config.changed(key):
+            log("config['{}'] changed from {} to {}".format(
+                key, config.previous(key), config[key]))
+
+    config.save()
+
+    user = host.adduser('shoutcast')
+
+    if not os.path.exists(INSTALL_DIR):
+      log('Creating folder, and fetching shoutcast source')
+      os.makedirs(INSTALL_DIR, user.pw_uid)
+      source = config['source']
+      sourcehash = config['source-hash']
+      d = fetch()
+      tmpfile = d.download_and_validate(source, sourcehash)
+
+      tarcmd = "tar xvfz {} -C {}"
+      subprocess.check_output(shlex.split(tarcmd.format(tmpfile, INSTALL_DIR)))
+
+      chown_recursive(user.pw_uid, user.pw_gid)
+
+    if not config['adminpassword'] or not config['password']:
+        log("Leaving shoutcast unconfigured as no config data found")
+        return
+
+    with open(CONFIG_PATH, 'w') as f:
+        relaycfg = am_i_a_relay()
+        if relaycfg:
+          config['screlayhost'] = relaycfg[0]
+          config['screlayport'] = relaycfg[1]
+        f.write(render(os.path.basename(CONFIG_PATH), config))
+
+    chown_recursive(user.pw_uid, user.pw_gid)
+
+    hookenv.open_port(config['port'])
+
+    if not os.path.exists('/etc/init/shoutcast.conf'):
+      shutil.copy('templates/shoutcast.conf', '/etc/init/shoutcast.conf')
+
+def am_i_a_relay():
+  # try to be clever, and append to the config dict if we have a relation
+  relaycache = os.path.join(os.environ['CHARM_DIR'], '.relay')
+  if os.path.exists(relaycache):
+    with open(relaycache, 'r') as f:
+      cache = f.readlines()
+      return cache
+
+
+def chown_recursive(uid, gid):
+  for root, dirs, files in os.walk(INSTALL_DIR):
+      for momo in dirs:
+        os.chown(os.path.join(root, momo), uid, gid)
+      for momo in files:
+        os.chown(os.path.join(root, momo), uid, gid)
+
+if __name__ == "__main__":
+    # execute a hook based on the name the program is called by
+    hooks.execute(sys.argv)
